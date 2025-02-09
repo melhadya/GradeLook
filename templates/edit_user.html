@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GL - Edit User</title>
+    <link rel="Icon" href="../static/gl-icon.png">
+</head>
+<body>
+    <form method="post" action="/add_user">
+        <input type="number" name="id" hidden value="{{ user['id'] }}">
+        <input type="text" name="name" autofocus autocomplete="off" value="{{ user['name'] }}">
+        <input type="text" name="username" autocomplete="off" value="{{ user['username'] }}">
+        <input type="text" name="title" autocomplete="off" value="{{ user['title'] }}">
+        <input type="text" name="phone" autocomplete="off" value="{{ user['phone'] }}">
+        <input type="email" name="email" autocomplete="off" value="{{ user['email'] }}">
+        <input type="number" name="quota" autocomplete="off" value="{{ user['quota'] }}">
+        <input type="submit">
+    </form>
+</body>
+</html>

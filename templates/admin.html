@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GL - Admin</title>
+    <link rel="Icon" href="../static/gl-icon.png">
+</head>
+<body>
+    <h2>Welcome GL - Admin! --- <a href="/logout">Logout</a></h2>
+    <h3><a href="/add_user">Add New User</a></h3>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>title</th>
+            <th>Consumption</th>
+            <th>Quota</th>
+            <th>Action</th>
+        </tr>
+        {% if error %}
+        </table>
+        <h3>{{ error }}</h3>
+        {% else %}
+        {% for user in users%}
+        <tr>
+            <td>{{ user["id"] }}</td>
+            <td>{{ user["name"] }}</td>
+            <td>{{ user["title"] }}</td>
+            <td>{{ user["consumption"] }}</td>
+            <td>{{ user["quota"] }}</td>
+            <td>
+                <a href="/edit_user?user_id={{ user['id'] }}">Edit</a>
+                <a href="/remove_user?user_id={{ user['id'] }}">Remove</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+</body>
+</html>
