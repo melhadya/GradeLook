@@ -50,6 +50,26 @@ class SQL:
             self.db.close()
             print("DB connection closed!")
 
+    def script(self, script):
+        
+        if self.db is None:
+            print("DB error: no db connection!")
+            return None
+
+        print("Script: " + script)
+        try:
+            self.db.cursor().executescript(script)
+        except sqlite3.Error as e:
+            print("DB error: can't execute query! " + str(e))
+            return None
+        print("Query executed!")
+        try:
+            self.db.commit()
+            return True
+        except sqlite3.Error as e:
+            print("DB error: can't make changes! " + str(e))
+            return False
+
 # PW hash helper
 def hash(password):
     if password:

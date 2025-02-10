@@ -92,7 +92,16 @@ def add_user():
                     values ('{username}', '{pw_hash}', '{name}', '{title}', '{phone}', '{email}', {quota})
                     """
         db.query(add_db)
+        new_query = f"select id from users where username = '{username}'"
+        new_user_id = db.query(new_query)[0]["id"]
         db.close()
+        new_db_name = f"users_db/{new_user_id}.db"
+        new_db = SQL(new_db_name)
+        new_db.connect()
+        with open('gl.sql', 'r') as sql_file:
+            sql_script = sql_file.read()
+        new_db.script(sql_script)
+        new_db.close()
         print("User added successfully!")
     except:
         print("Error adding user!")
@@ -190,26 +199,23 @@ def login():
     if request.method == "GET":
         return render_template("login.html")
     
-    try:
-        username = ""   # get un from form
-        password = ""   # get pw from form
-        if not username or not password:
-            return render_template("login.html", error="Must enter username and password!")
-    except:
+    
+    username = request.form.get("username")
+    password = request.form.get("password")
+    if not username or not password:
         return render_template("login.html", error="Must enter username and password!")
     
     db = SQL(db_name)
     valid = False
     try:
         db.connect()
-        get_hash = "select * from users where username = " + username
-        users = db.query(get_hash)
-        for user in users:
-            valid = check(user["hash"], password)
+        get_hash = f"select * from users where username = '{username}'"
+        user = db.query(get_hash)[0]
+        valid = check(user["hash"], password)
         db.close()
     except:
-        print("Error connecting to DB inside app.py!")
-        return redirect("/login")
+        print("Error getting and validating user password!")
+        return render_template("login.html", error="Wrong username/password!")
     
     if valid:
         session["id"] = user["id"]
@@ -218,12 +224,14 @@ def login():
         session["phone"] = user["phone"]
         session["email"] = user["email"]
         session["quota"] = user["quota"]
+        session["consumption"] = user["consumption"]
         return redirect("/")
+    return render_template("login.html", error="Wrong username/password!")
 
 
 @app.route("/")
 def index():
     if not session:
         return redirect("/login")
-    print("DEFINE HOMEPAGE")
-    return redirect("/login")
+    
+    return render_template("login.html")

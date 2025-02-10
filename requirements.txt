@@ -1,1 +1,4 @@
-html
+argon2
+sqlite3
+flask
+flask_session
