@@ -26,7 +26,7 @@ def generate_username(name):
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect("/admin_login")
+    return redirect("/login")
 
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
@@ -224,6 +224,6 @@ def login():
 @app.route("/")
 def index():
     if not session:
-        return redirect("/admin_login")
+        return redirect("/login")
     print("DEFINE HOMEPAGE")
-    return redirect("/admin_login")
+    return redirect("/login")
