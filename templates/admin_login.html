@@ -7,6 +7,9 @@
     <link rel="Icon" href="../static/gl-icon.png">
 </head>
 <body>
+    {% if error %}
+    <h3>{{ error }}</h3>
+    {% endif %}
     <form method="post" action="/admin_login">
         <input type="text" name="username" autofocus autocomplete="off" placeholder="Username">
         <input type="password" name="password" autofocus autocomplete="off" placeholder="Password">

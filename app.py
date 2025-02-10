@@ -26,7 +26,7 @@ def generate_username(name):
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect("/login")
+    return redirect("/admin_login")
 
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
@@ -45,7 +45,7 @@ def admin_login():
         session["admin"] = "admin"
         return redirect("/admin")
     
-    render_template(template, error="Invalid username and/or password!")
+    return render_template(template, error="Invalid username and/or password!")
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -87,8 +87,10 @@ def add_user():
         if int(request.form.get("quota")) > 100:
             quota = int(request.form.get("quota"))
         db.connect()
-        add_db = f"insert into users(username, hash, name, title, phone, email, quota)
-                    values ('{username}', '{pw_hash}', '{name}', '{title}', '{phone}', '{email}', {quota})"
+        add_db = f"""
+                    insert into users(username, hash, name, title, phone, email, quota)
+                    values ('{username}', '{pw_hash}', '{name}', '{title}', '{phone}', '{email}', {quota})
+                    """
         db.query(add_db)
         db.close()
         print("User added successfully!")
@@ -127,17 +129,23 @@ def edit_user():
         user_id = request.form.get("id")
         name = request.form.get("name")
         username = request.form.get("username")
+        password = username + "GL"
+        pw_hash = hash(password)
         title = request.form.get("title")
         phone = request.form.get("phone")
         email = request.form.get("email")
         quota = 100
+        print("QUOTA IS DEFAULT")
         if int(request.form.get("quota")) > 100:
             quota = int(request.form.get("quota"))
+            print("QUOTA IS CHANGED")
+        
         db.connect()
         update_db = f"""
                     update users set
                     username = '{username}',
                     name = '{name}',
+                    hash = '{pw_hash}',
                     title = '{title}',
                     phone = '{phone}',
                     email = '{email}',
@@ -216,9 +224,6 @@ def login():
 @app.route("/")
 def index():
     if not session:
-        redirect("/login")
+        return redirect("/admin_login")
     print("DEFINE HOMEPAGE")
-
-@app.route("/add_user", methods=["GET", "POST"])
-def add_user():
-    print("DEFINE ADDING USER")
+    return redirect("/admin_login")
