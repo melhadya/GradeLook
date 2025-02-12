@@ -49,8 +49,12 @@ def new_student(sname, birth, sclass, email, phone):
                     insert into students(sname, birth, sclass, email, phone)
                     values(?, ?, ?, ?, ?)
                 """
-        db.query(squery, (sname, birth, sclass, email, phone))
-        return True
+        if session["consumption"] < session["quota"] and db.query(squery, (sname, birth, sclass, email, phone)):
+            with SQL(db_name) as tdb:
+                iucq = "update users set consumption = ? where id = ?"
+                tdb.query(iucq, (session["consumption"]+1, session["id"]))
+                session["consumption"] += 1
+            return True
     return False
 
 # Admin Routes
@@ -223,8 +227,8 @@ def login():
             session["title"] = user["title"]
             session["phone"] = user["phone"]
             session["email"] = user["email"]
-            session["quota"] = user["quota"]
-            session["consumption"] = user["consumption"]
+            session["quota"] = int(user["quota"])
+            session["consumption"] = int(user["consumption"])
             session["db"] = f"users_db/{session["id"]}.db"
             return redirect("/")
     return render_template(template, error="Wrong username/password!")
