@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Category</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Edit Category</h1>
+        <form action="{{ url_for('edit_category') }}" method="POST">
+            <input type="hidden" name="id" value="{{ cdata.id }}">
+            <div class="form-group">
+                <label for="cname">Category Name:</label>
+                <input type="text" id="cname" name="cname" value="{{ cdata.catname }}" required>
+            </div>
+            <button type="submit">Update Category</button>
+        </form>
+        <a href="{{ url_for('index') }}">Back to Dashboard</a>
+    </div>
+</body>
+</html>

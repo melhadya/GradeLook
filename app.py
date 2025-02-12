@@ -633,38 +633,39 @@ def add_instance_data():
         return redirect("/login")
     template = "add_instance_data.html"
 
-    with SQL(session["db"]) as db:
-        # default
-        if request.method == "GET":
-            igq = "select * from instances"
-            instances = db.query(igq)
-            return render_template(template, instances=instances)
-        
-        # add instance data
-        iid = request.form.get("iid")
-        ifile = request.files["ifile"]
-        if not iid or not ifile:
-            return render_template(template, error="Must provide instance and file!")
-        # instance_validate
-        ivq = f"select * from instances where id = ?"
-        if not db.query(ivq, iid):
-            return render_template(template, error="Instance not found!")
-        # read file
-        import pandas as pd
-        df = pd.read_csv(ifile)
-        for i in range(len(df)):
-            sid = df.loc[i, "sid"]
-            score = df.loc[i, "score"]
-            total = df.loc[i, "total"]
+    try:
+        with SQL(session["db"]) as db:
+            if request.method == "GET":
+                igq = "select * from instances"
+                instances = db.query(igq)
+                return render_template(template, instances=instances)
+
+            # add instance data
+            iid = request.form.get("iid")
+            ifile = request.files["ifile"]
+            if not iid or not ifile:
+                return render_template(template, error="Must provide instance and file!")
+
+            # instance_validate
+            ivq = "select * from instances where id = ?"
+            if not db.query(ivq, (iid,)):
+                return render_template(template, error="Instance not found!")
+
+            # read file
+            import pandas as pd
+            df = pd.read_csv(ifile)
             ni = "inst" + str(iid)
-            iquery = f"""
-                        insert into {ni}(student, score, total)
-                        values(?, ?, ?)
-                    """
-            if not db.query(iquery, (sid, score, total)):
-                return render_template(template, error="Error adding instance data!")
-        return redirect("/")
-    return render_template(template, error="Error adding instance data!")
+            for _, row in df.iterrows():
+                sid = row["sid"]
+                score = row["score"]
+                total = row["total"]
+                iquery = f"insert into {ni}(student, score, total) values(?, ?, ?)"
+                if not db.query(iquery, (sid, score, total)):
+                    return render_template(template, error="Error adding instance data!")
+            return redirect("/")
+    except Exception as e:
+        print(f"Error in add_instance_data: {e}")
+        return render_template(template, error="Error adding instance data!")
 
 # add students to a class from csv file
 @app.route("/add_students_to_class", methods=["GET", "POST"])

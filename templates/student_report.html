@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Report</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Student Report for {{ student.sname }}</h1>
+        <p><strong>Birth Date:</strong> {{ student.birth }}</p>
+        <p><strong>Class:</strong> {{ student.sclass }}</p>
+        <p><strong>Email:</strong> {{ student.email }}</p>
+        <p><strong>Phone:</strong> {{ student.phone }}</p>
+
+        <h2>Instances</h2>
+        {% if student_data %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Instance Name</th>
+                        <th>Category</th>
+                        <th>Score</th>
+                        <th>Total</th>
+                        <th>Grade (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for instance in student_data %}
+                        <tr>
+                            <td>{{ instance.iname }}</td>
+                            <td>{{ instance.category }}</td>
+                            {% if instance.data %}
+                                {% for data in instance.data %}
+                                    <td>{{ data.score }}</td>
+                                    <td>{{ data.total }}</td>
+                                    <td>{{ data.grade | round(2) }}</td>
+                                {% endfor %}
+                            {% else %}
+                                <td colspan="3">No data available</td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No instances available for this student.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

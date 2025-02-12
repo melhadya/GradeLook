@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Instance Data</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Add Instance Data</h1>
+        <form action="{{ url_for('add_instance_data') }}" method="POST" enctype="multipart/form-data">
+            <label for="iid">Select Instance:</label>
+            <select name="iid" id="iid" required>
+                {% for instance in instances %}
+                    <option value="{{ instance.id }}">{{ instance.iname }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="ifile">Upload CSV File:</label>
+            <input type="file" name="ifile" id="ifile" accept=".csv" required>
+
+            <button type="submit">Add Data</button>
+        </form>
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+    </div>
+</body>
+</html>
