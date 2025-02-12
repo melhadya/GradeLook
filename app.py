@@ -379,7 +379,6 @@ def add_student():
     """
     return render_template(template, error="Error adding student!")
     
-# edit student
 @app.route("/edit_student", methods=["GET", "POST"])
 def edit_student():
     if not session:
@@ -422,7 +421,6 @@ def edit_student():
         return redirect("/")
     return render_template(template, error="Error editing student!")
     
-# remove student
 @app.route("/remove_student")
 def remove_student():
     if not session:
