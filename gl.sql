@@ -41,13 +41,3 @@ create table instances(
     foreign key(category) references categories(catname) on delete cascade on update cascade,
     foreign key(iclass) references classes(cname) on delete cascade on update cascade
 );
-
-/*
-create table instX(
-    id integer primary key,
-    student integer not null,
-    score numeric default 0,
-    total numeric not null,
-    foreign key(student) references students(id) on delete cascade on update cascade
-);
-*/

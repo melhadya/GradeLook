@@ -550,6 +550,17 @@ def add_instance():
                     values(?, ?, ?, ?)
                 """
         if db.query(iquery, (iname, iclass, category, idate)):
+            giq = f"select id from instances order by id desc limit 1"
+            ni = "inst" + str(db.query(giq)[0]["id"])
+            iit = f"""
+                create table {ni}(
+                id integer primary key,
+                student integer not null,
+                score numeric default 0,
+                total numeric not null,
+                foreign key(student) references students(id) on delete cascade on update cascade)
+                """
+            db.script(iit)
             return redirect("/")
     return render_template(template, error="Error adding instance!")
 
@@ -615,13 +626,7 @@ def remove_instance():
         print("Instance deleted!")
     return redirect("/")
 
+# add instance data from excel file
+# add students to a class from excel sheet
 # get student report
-
-
 # get class report
-
-
-# add students from excel
-
-
-# add instance from csv
