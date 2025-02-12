@@ -626,7 +626,126 @@ def remove_instance():
         print("Instance deleted!")
     return redirect("/")
 
-# add instance data from excel file
-# add students to a class from excel sheet
+# add instance data from csv file
+@app.route("/add_instance_data", methods=["GET", "POST"])
+def add_instance_data():
+    if not session:
+        return redirect("/login")
+    template = "add_instance_data.html"
+
+    with SQL(session["db"]) as db:
+        # default
+        if request.method == "GET":
+            igq = "select * from instances"
+            instances = db.query(igq)
+            return render_template(template, instances=instances)
+        
+        # add instance data
+        iid = request.form.get("iid")
+        ifile = request.files["ifile"]
+        if not iid or not ifile:
+            return render_template(template, error="Must provide instance and file!")
+        # instance_validate
+        ivq = f"select * from instances where id = ?"
+        if not db.query(ivq, iid):
+            return render_template(template, error="Instance not found!")
+        # read file
+        import pandas as pd
+        df = pd.read_csv(ifile)
+        for i in range(len(df)):
+            sid = df.loc[i, "sid"]
+            score = df.loc[i, "score"]
+            total = df.loc[i, "total"]
+            ni = "inst" + str(iid)
+            iquery = f"""
+                        insert into {ni}(student, score, total)
+                        values(?, ?, ?)
+                    """
+            if not db.query(iquery, (sid, score, total)):
+                return render_template(template, error="Error adding instance data!")
+        return redirect("/")
+    return render_template(template, error="Error adding instance data!")
+
+# add students to a class from csv file
+@app.route("/add_students_to_class", methods=["GET", "POST"])
+def add_students_to_class():
+    if not session:
+        return redirect("/login")
+    template = "add_students_to_class.html"
+
+    with SQL(session["db"]) as db:
+        # default
+        if request.method == "GET":
+            cgq = "select * from classes"
+            classes = db.query(cgq)
+            return render_template(template, classes=classes)
+        
+        # add students to class
+        cid = request.form.get("cid")
+        cfile = request.files["cfile"]
+        if not cid or not cfile:
+            return render_template(template, error="Must provide class and file!")
+        # class_validate
+        cvq = f"select * from classes where id = ?"
+        if not db.query(cvq, cid):
+            return render_template(template, error="Class not found!")
+        # read file
+        import pandas as pd
+        df = pd.read_csv(cfile)
+        for i in range(len(df)):
+            sname = df.loc[i, "sname"]
+            birth = df.loc[i, "birth"]
+            email = df.loc[i, "email"]
+            phone = df.loc[i, "phone"]
+            if not new_student(sname, birth, cid, email, phone):
+                return render_template(template, error="Error adding student!")
+        return redirect("/")
+    return render_template(template, error="Error adding students!")
+
 # get student report
-# get class report
+@app.route("/student_report")
+def student_report():
+    if not session:
+        return redirect("/login")
+    template = "student_report.html"
+
+    with SQL(session["db"]) as db:
+        # get student data
+        sid = request.args.get("sid")
+        if not sid:
+            return redirect("/")
+        gsq = f"select * from students where id = ?"
+        student = db.query(gsq, sid)
+        if not student:
+            return render_template(template, error="Student not found!")
+        # get student instances
+        student = student[0]
+        student_data = []
+        siq = f"select * from instances where iclass = ?"
+        instances = db.query(siq, student["sclass"])
+        if not instances:
+            return render_template(template, error="No instances to show!")
+        for instance in instances:
+            ni = "inst" + str(instance["id"])
+            siq = f"select * from {ni} where student = ?"
+            instance["data"] = db.query(siq, student["id"])
+            student_data.append(instance)
+        # add student grades based on category
+        for instance in student_data:
+            for data in instance["data"]:
+                giq = f"select category from instances where id = ?"
+                category = db.query(giq, instance["id"])[0]["category"]
+                ni = "inst" + str(instance["id"])
+                giq = f"select * from {ni} where student = ?"
+                grades = db.query(giq, student["id"])
+                total = 0
+                score = 0
+                for grade in grades:
+                    total += grade["total"]
+                    score += grade["score"]
+                data["grade"] = score / total * 100
+                data["category"] = category
+        return render_template(template, student=student, student_data=student_data)
+    return render_template(template, error="Error getting student report!")
+
+# get class grades report for all instances for every student
