@@ -1,12 +1,22 @@
-from helper import SQL, hash, check
+import os
+from dotenv import load_dotenv
+from helper import SQL, cp, hp
 from flask import Flask, redirect, render_template, request, session
 from flask_session import Session
+load_dotenv()
 
-app = Flask(__name__)
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
-db_name = "gl.db"
+def flask_start():
+    # DB name and admin credentials    
+    global db_name
+    db_name = os.getenv("DATABASE")
+
+    # flask initiators
+    global app
+    app = Flask(__name__)
+    app.config["SESSION_PERMANENT"] = False
+    app.config["SESSION_TYPE"] = "filesystem"
+    Session(app)
+flask_start()
 
 @app.after_request
 def after_request(response):
@@ -15,179 +25,174 @@ def after_request(response):
     response.headers["Pragma"] = "no-cache"
     return response
 
-def generate_username(name):
-    parts = name.lower().strip().split()
-    if len(parts) < 2:
-        return parts[0]
-    return parts[0] + "." + parts[-1]
-
-### Flask routes/methods ###
-
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/login")
+
+def generate_username(name):
+    if not name:
+        return None
+    parts = name.lower().strip().split()
+    if len(parts) < 2:
+        return parts[0]
+    else:
+        return parts[0] + "." + parts[-1]
+
+def new_student(sname, birth, sclass, email, phone):
+    with SQL(session["db"]) as db:
+        scq = f"select * from classes where cname = ?"
+        if not db.query(scq, sclass):
+            print("Class not found!")
+            return False
+        squery = f"""
+                    insert into students(sname, birth, sclass, email, phone)
+                    values(?, ?, ?, ?, ?)
+                """
+        db.query(squery, (sname, birth, sclass, email, phone))
+        return True
+    return False
+
+# Admin Routes
 
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
     session.clear()
     template = "admin_login.html"
 
+    # default
     if request.method == "GET":
         return render_template(template)
     
-    username = request.form.get("username")
-    password = request.form.get("username")
-    if not username or not password:
-        return render_template(template, error="Must enter username and password!")
+    # login
+    un = request.form.get("username")
+    pw = request.form.get("password")
+    aun = os.getenv("ADMIN_USERNAME")
+    apw = os.getenv("ADMIN_PASSWORD")
     
-    if username == "gl-admin" and password == "gl-admin":
+    if not un or not pw:
+        return render_template(template, error="Must enter username/password!")
+    elif not aun or not apw:
+        return render_template(template, error="Admin credentials are not set!")
+    elif un == aun and pw == apw:
         session["admin"] = "admin"
         return redirect("/admin")
-    
-    return render_template(template, error="Invalid username and/or password!")
+    else:
+        return render_template(template, error="Invalid username and/or password!")
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if "admin" not in session:
         return redirect("/login")
-    
-    db = SQL(db_name)
-    try:
-        db.connect()
+    template = "admin.html"
+
+    # show users on admin homepage
+    with SQL(db_name) as db:
         get_users = "select * from users"
         users = db.query(get_users)
-        db.close()
         if not users:
-            return render_template("admin.html", error="No users to show!")
-    except:
-        print("Error collecting users!")
-        return render_template("admin.html", error="Error collecting users!")
-    return render_template("admin.html", users=users)
+            return render_template(template, error="No users to show!")
+        return render_template(template, users=users)
 
 @app.route("/add_user", methods=["GET", "POST"])
 def add_user():
     if "admin" not in session:
         return redirect("/login")
+    template = "add_user.html"
     
-    # add user
+    # default
     if request.method == "GET":
-        return render_template("add_user.html")
+        return render_template(template)
     
-    db = SQL(db_name)
-    try:
+    # adding user
+    with SQL(db_name) as db:
+        # get data from form
         name = request.form.get("name")
         username = generate_username(name)
         password = username + "GL"
-        pw_hash = hash(password)
+        pw_hash = hp(password)
         title = request.form.get("title")
         phone = request.form.get("phone")
         email = request.form.get("email")
         quota = 100
-        if int(request.form.get("quota")) > 100:
-            quota = int(request.form.get("quota"))
-        db.connect()
-        add_db = f"""
-                    insert into users(username, hash, name, title, phone, email, quota)
-                    values ('{username}', '{pw_hash}', '{name}', '{title}', '{phone}', '{email}', {quota})
-                    """
-        db.query(add_db)
-        new_query = f"select id from users where username = '{username}'"
-        new_user_id = db.query(new_query)[0]["id"]
-        db.close()
+        if not name or not title or not phone or not email:
+            return render_template(template, error="Must provide all user data!")
+        # add user to db
+        auq = """
+                insert into users(username, hash, name, title, phone, email, quota)
+                values (?, ?, ?, ?, ?, ?, ?)
+            """
+        db.query(auq, (username, pw_hash, name, title, phone, email, quota))
+        # create user db
+        uidq = "select id from users where username = ?"
+        new_user_id = db.query(uidq, (username,))[0]["id"]
         new_db_name = f"users_db/{new_user_id}.db"
-        new_db = SQL(new_db_name)
-        new_db.connect()
-        with open('gl.sql', 'r') as sql_file:
-            sql_script = sql_file.read()
-        new_db.script(sql_script)
-        new_db.close()
+        with SQL(new_db_name) as new_db:
+            with open('gl.sql', 'r') as sql_file:
+                sql_script = sql_file.read()
+            new_db.script(sql_script)
         print("User added successfully!")
-    except:
-        print("Error adding user!")
-        return render_template("add_user.html", error="Error adding user!")
     return redirect("/admin")
 
 @app.route("/edit_user", methods=["GET", "POST"])
 def edit_user():
     if "admin" not in session:
         return redirect("/login")
-    
-    # edit user
-    db = SQL(db_name)
-    if request.method == "GET":
-        try:
-            user_id = request.args.get("user_id")
-            if not user_id:
+    template = "edit_user.html"
+
+    with SQL(db_name) as db:
+        # default
+        if request.method == "GET":
+            id = request.args.get("id")
+            if not id:
                 print("Cannot get user id!")
                 return redirect("/admin")
-            db.connect()
-            get_user = f"select * from users where id = {user_id}"
-            users = db.query(get_user)
-            db.close()
-            if not users:
+            user = f"select * from users where id = ?"
+            user = db.query(user, (id))[0]
+            if not user:
                 print("Error getting user data!")
                 return redirect("/admin")
-            return render_template("edit_user.html", user=users[0])
-            
-        except:
-            print("Error getting user data!")
-            return redirect("/admin")
-    
-    try:
-        user_id = request.form.get("id")
+            return render_template(template, user=user)    
+        # edit user
+        id = request.form.get("id")
         name = request.form.get("name")
         username = request.form.get("username")
-        password = username + "GL"
-        pw_hash = hash(password)
+        pw_hash = hp(username + "GL")
         title = request.form.get("title")
         phone = request.form.get("phone")
         email = request.form.get("email")
-        quota = 100
-        print("QUOTA IS DEFAULT")
-        if int(request.form.get("quota")) > 100:
-            quota = int(request.form.get("quota"))
-            print("QUOTA IS CHANGED")
-        
-        db.connect()
-        update_db = f"""
+        quota = int(request.form.get("quota"))
+        euq = f"""
                     update users set
-                    username = '{username}',
-                    name = '{name}',
-                    hash = '{pw_hash}',
-                    title = '{title}',
-                    phone = '{phone}',
-                    email = '{email}',
-                    quota = {quota}
-                    where id = {user_id}
+                    username = ?,
+                    name = ?,
+                    hash = ?,
+                    title = ?,
+                    phone = ?,
+                    email = ?,
+                    quota = ?
+                    where id = ?
                     """
-        db.query(update_db)
-        db.close()
-        print("User edited successfully!")
-    except:
-        print("Error editing user!")
+        db.query(euq, (username, name, pw_hash, title, phone, email, quota, id))
     return redirect("/admin")
 
-@app.route("/remove_user", methods=["GET", "POST"])
+@app.route("/remove_user")
 def remove_user():
     if "admin" not in session:
         return redirect("/login")
-    
+
     # remove user
-    db = SQL(db_name)
-    if request.method == "GET":
-        try:
-            user_id = request.args.get("user_id")
-            if not user_id:
-                print("Cannot get user id!")
-                return redirect("/admin")
-            db.connect()
-            user = f"delete from users where id = {user_id}"
-            db.query(user)
-            db.close()
-            print("User deleted!")
-        except:
-            print("Error deleting user!")
+    with SQL(db_name) as db:
+        id = request.args.get("id")
+        if not id:
+            print("Cannot get user id!")
+            return redirect("/admin")
+        user = f"delete from users where id = ?"
+        db.query(user, id)
+        db_path = f"users_db/{id}.db"
+        if os.path.exists(db_path):
+            os.remove(db_path)
+        print("User deleted!")
     return redirect("/admin")
 
 ### admin functions done ###
@@ -195,43 +200,267 @@ def remove_user():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     session.clear()
+    template = "login.html"
 
+    # default
     if request.method == "GET":
-        return render_template("login.html")
+        return render_template(template)
     
-    
+    # login
     username = request.form.get("username")
     password = request.form.get("password")
     if not username or not password:
-        return render_template("login.html", error="Must enter username and password!")
+        return render_template(template, error="Must enter username and password!")
     
-    db = SQL(db_name)
-    valid = False
-    try:
-        db.connect()
-        get_hash = f"select * from users where username = '{username}'"
-        user = db.query(get_hash)[0]
-        valid = check(user["hash"], password)
-        db.close()
-    except:
-        print("Error getting and validating user password!")
-        return render_template("login.html", error="Wrong username/password!")
-    
-    if valid:
-        session["id"] = user["id"]
-        session["name"] = user["name"]
-        session["title"] = user["title"]
-        session["phone"] = user["phone"]
-        session["email"] = user["email"]
-        session["quota"] = user["quota"]
-        session["consumption"] = user["consumption"]
-        return redirect("/")
-    return render_template("login.html", error="Wrong username/password!")
-
+    # check password / initiate user session
+    with SQL(db_name) as db:
+        get_hash = f"select * from users where username = ?"
+        user = db.query(get_hash, username)
+        if user and cp(user[0]["hash"], password):
+            user = user[0]
+            session["id"] = user["id"]
+            session["name"] = user["name"]
+            session["title"] = user["title"]
+            session["phone"] = user["phone"]
+            session["email"] = user["email"]
+            session["quota"] = user["quota"]
+            session["consumption"] = user["consumption"]
+            session["db"] = f"users_db/{session["id"]}.db"
+            return redirect("/")
+    return render_template(template, error="Wrong username/password!")
 
 @app.route("/")
 def index():
     if not session:
         return redirect("/login")
+    template = "index.html"
+
+    # get classes
+    with SQL(session["db"]) as db:
+        lcq = "select * from classes"
+        classes = db.query(lcq)
+        if not classes:
+            return render_template(template, error="No classes to show!")
+        return render_template(template, classes=classes)
+    return render_template(template, error="Can't get classes!")
+
+@app.route("/change_password", methods=["GET", "POST"])
+def change_password():
+    if not session:
+        return redirect("/login")
+    template = "change_password.html"
     
-    return render_template("login.html")
+    # default
+    if request.method == "GET":
+        return render_template(template)
+    
+    # change password
+    old = request.form.get("old")
+    new = request.form.get("new")
+    confirm = request.form.get("confirm")
+    if not old or not new or not confirm:
+        return render_template(template, error="Must fill all fields!")
+    elif new != confirm:
+        return render_template(template, error="Passwords mismatch!")
+    
+    with SQL(db_name) as db:
+        gphq = f"select hash from users where id = ?"
+        user = db.query(gphq, session['id'])
+        if user and cp(user[0]["hash"], old):
+            uhq = f"update users set hash = ? where id = ?"
+            db.query(uhq, (hp(new), session["id"]))
+            return redirect("/login")
+    return render_template(template, error="Wrong password!")
+
+@app.route("/add_class", methods=["GET", "POST"])
+def add_class():
+    if not session:
+        return redirect("/login")
+    template = "add_class.html"
+    
+    # default
+    if request.method == "GET":
+        return render_template(template)
+    
+    # add class
+    with SQL(session["db"]) as db:
+        cname = request.form.get("cname")
+        ctype = request.form.get("ctype")
+        if not cname or not ctype:
+            return render_template(template, error="Must provide class name/type!")
+        acq = f"insert into classes(cname, type) values(?, ?)"
+        if db.query(acq, (cname, ctype)):
+            return redirect("/")
+    return render_template(template, error="Class already exists!")
+    
+@app.route("/edit_class", methods=["GET", "POST"])
+def edit_class():
+    if not session:
+        return redirect("/login")
+    template = "edit_class.html"
+
+    with SQL(session["db"]) as db:
+        # default
+        if request.method == "GET":
+            id = request.args.get("id")
+            if not id:
+                return redirect("/")
+            gcq = f"select * from classes where id = ?"
+            cdata = db.query(gcq, id)
+            if cdata:
+                return render_template(template, cdata=cdata[0])
+            return render_template(template, error="Can't get class data!")
+
+        # edit class
+        id = request.form.get("id")
+        cname = request.form.get("cname")
+        ctype = request.form.get("ctype")
+        if not cname or not ctype or not id:
+            return render_template(template, error="Must provide class data!")
+        ecq = f"""
+                update classes set
+                cname = ?,
+                ctype = ?
+                where cid = ?
+                """
+        db.query(ecq, (cname, ctype, id))
+    return redirect("/")
+
+@app.route("/remove_class")
+def remove_class():
+    if not session:
+        return redirect("/login")
+    
+    # remove class
+    with SQL(session["db"]) as db:
+        if request.method == "GET":
+            id = request.args.get("id")
+            if not id:
+                print("Cannot get class id!")
+                return redirect("/")
+            cdq = f"delete from classes where id = ?"
+            db.query(cdq, id)
+            print("Class deleted!")
+    return redirect("/")
+
+@app.route("/add_student", methods=["GET", "POST"])
+def add_student():
+    if not session:
+        return redirect("/login")
+    template = "add_student.html"
+    
+    if request.method == "GET":
+        return render_template(template)
+    
+    
+    # get form data
+    if True:
+        sname = request.form.get("sname")
+        birth = request.form.get("birth")
+        sclass = request.form.get("sclass")
+        email = request.form.get("email")
+        phone = request.form.get("phone")
+        if not sname or not birth or not email or not phone or not sclass:
+            return render_template(template, error="Must provide student data!")
+        # add student
+        if new_student(sname, birth, sclass, email, phone):
+            return redirect("/")
+    """else:
+        # get excel file contents
+        for i in range(10):
+            if not new_student(sname, birth, sclass, email, phone):
+                print("error adding student" + sname)
+        else:
+            return redirect("/")
+    """
+    return render_template(template, error="Error adding student!")
+    
+# edit student
+@app.route("/edit_student", methods=["GET", "POST"])
+def edit_student():
+    if not session:
+        return redirect("/login")
+    template = "edit_student.html"
+    with SQL(session["db"]) as db:
+        # default
+        if request.method == "GET":
+            id = request.args.get("id")
+            if not id:
+                return redirect("/")
+            gsdq = f"select * from students where id = ?"
+            sdata = db.query(gsdq, id)
+            if sdata:
+                return render_template(template, sdata=sdata[0])
+            return render_template(template, error="Can't get student data!")
+        # edit student
+        id = request.form.get("id")
+        sname = request.form.get("sname")
+        birth = request.form.get("birth")
+        sclass = request.form.get("sclass")
+        email = request.form.get("email")
+        phone = request.form.get("phone")
+        if not id or not sname or not birth or not email or not phone or not sclass:
+            return render_template(template, error="Must provide student data!")
+        # sclass_validate
+        scvq = f"select * from classes where cname = ?"
+        if not db.query(scvq, sclass):
+            return render_template(template, error="Class not found!")
+        squery = f"""
+                    update students set
+                    sname = ?,
+                    birth = ?,
+                    sclass = ?,
+                    email = ?,
+                    phone = ?
+                    where id = ?
+                """
+        db.query(squery, (sname, birth, sclass, email, phone, id))
+        return redirect("/")
+    return render_template(template, error="Error editing student!")
+    
+# remove student
+@app.route("/remove_student")
+def remove_student():
+    if not session:
+        return redirect("/login")
+    
+    with SQL(session["db"]) as db:
+        if request.method == "GET":
+            id = request.args.get("id")
+            if not id:
+                print("Cannot get student id!")
+                return redirect("/")
+            dsq = f"delete from students where id = ?"
+            db.query(dsq, id)
+            print("Student deleted!")
+    return redirect("/")
+
+
+# add category
+
+
+# edit category
+
+
+# remove category
+
+
+# add instance
+
+
+
+# edit instance
+
+
+# remove instance
+
+
+# get student report
+
+
+# get class report
+
+
+# add students from excel
+
+# add instance from csv

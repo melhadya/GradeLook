@@ -22,7 +22,7 @@
         </table>
         <h3>{{ error }}</h3>
         {% else %}
-        {% for user in users%}
+        {% for user in users %}
         <tr>
             <td>{{ user["id"] }}</td>
             <td>{{ user["name"] }}</td>
@@ -30,8 +30,8 @@
             <td>{{ user["consumption"] }}</td>
             <td>{{ user["quota"] }}</td>
             <td>
-                <a href="/edit_user?user_id={{ user['id'] }}">Edit</a>
-                <a href="/remove_user?user_id={{ user['id'] }}">Remove</a>
+                <a href="/edit_user?id={{ user['id'] }}">Edit</a>
+                <a href="/remove_user?id={{ user['id'] }}">Remove</a>
             </td>
         </tr>
         {% endfor %}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GL - Homepage</title>
+    <link rel="Icon" href="../static/gl-icon.png">
+</head>
+<body>
+    <h2>Welcome {{ session["name"] }} --- <a href="/logout">Logout</a> --- <a href="/change_password">Change Password</a></h2>
+    <h3>Usage: {{ session["consumption"] }}/{{ session["quota"] }}</h3>
+    <h3><a href="/add_class">Add New Class</a></h3>
+    {% if error %}
+    <h3>{{ error }}</h3>
+    {% else %}
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Action</th>
+        </tr>
+        {% for class in classes %}
+        <tr>
+            <td>{{ class["cname"] }}</td>
+            <td>{{ class["type"] }}</td>
+            <td>
+                <a href="/edit_class?class_name={{ class['cname'] }}">Edit</a>
+                <a href="/remove_class?class_name={{ class['cname'] }}">Remove</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+</body>
+</html>

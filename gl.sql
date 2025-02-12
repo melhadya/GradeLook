@@ -6,31 +6,41 @@
     title text not null,
     phone text not null,
     email text,
-    quota integer not null,
+    quota integer default 100,
     consumption integer default 0
 );
 */
 
+create table classes(
+    id integer primary key,
+    cname text not null unique,
+    ctype text not null ---online/school/private/center + grade
+);
+
 create table students(
     id integer primary key,
-    name text not null,
+    sname text not null,
     birth number not null,
-    grade text not null,
+    sclass text not null,
     email text not null,
-    phone text not null
+    phone text not null,
+    foreign key(class) references classes(cname) on delete cascade on update cascade
 );
 
 create table categories(
+    id integer primary key,
     catname text not null unique
 );
 
 create table instances(
     id integer primary key,
-    name text not null,
+    iname text not null,
     code text not null,
-    grade text not null,
+    class text not null,
     category text not null,
-    foreign key(category) references categories(catname)
+    idate text not null,
+    foreign key(category) references categories(catname) on delete cascade on update cascade,
+    foreign key(class) references classes(cname) on delete cascade on update cascade
 );
 
 /*
@@ -39,6 +49,6 @@ create table instX(
     student integer not null,
     score numeric default 0,
     total numeric not null,
-    foreign key(student) references students(id)
+    foreign key(student) references students(id) on delete cascade on update cascade
 );
 */
