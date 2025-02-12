@@ -30,6 +30,11 @@ def logout():
     session.clear()
     return redirect("/login")
 
+def check_admin_session():
+    if "admin" not in session:
+        return False
+    return True
+
 def generate_username(name):
     if not name:
         return None
@@ -61,32 +66,35 @@ def new_student(sname, birth, sclass, email, phone):
 
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
-    session.clear()
-    template = "admin_login.html"
+    try:
+        session.clear()
+        template = "admin_login.html"
 
-    # default
-    if request.method == "GET":
-        return render_template(template)
-    
-    # login
-    un = request.form.get("username")
-    pw = request.form.get("password")
-    aun = os.getenv("ADMIN_USERNAME")
-    apw = os.getenv("ADMIN_PASSWORD")
-    
-    if not un or not pw:
-        return render_template(template, error="Must enter username/password!")
-    elif not aun or not apw:
-        return render_template(template, error="Admin credentials are not set!")
-    elif un == aun and pw == apw:
-        session["admin"] = "admin"
-        return redirect("/admin")
-    else:
-        return render_template(template, error="Invalid username and/or password!")
+        # default
+        if request.method == "GET":
+            return render_template(template)
+        # login
+        un = request.form.get("username")
+        pw = request.form.get("password")
+        aun = os.getenv("ADMIN_USERNAME")
+        apw = os.getenv("ADMIN_PASSWORD")
+        
+        if not un or not pw:
+            return render_template(template, error="Must enter username/password!")
+        elif not aun or not apw:
+            return render_template(template, error="Admin credentials are not set!")
+        elif un == aun and pw == apw:
+            session["admin"] = "admin"
+            return redirect("/admin")
+        else:
+            return render_template(template, error="Invalid username and/or password!")
+    except Exception as e:
+        print(f"Error in admin_login: {e}")
+        return render_template(template, error="An error occurred during login.")
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
-    if "admin" not in session:
+    if not check_admin_session():
         return redirect("/login")
     template = "admin.html"
 
@@ -100,7 +108,7 @@ def admin():
 
 @app.route("/add_user", methods=["GET", "POST"])
 def add_user():
-    if "admin" not in session:
+    if not check_admin_session():
         return redirect("/login")
     template = "add_user.html"
     
@@ -140,7 +148,7 @@ def add_user():
 
 @app.route("/edit_user", methods=["GET", "POST"])
 def edit_user():
-    if "admin" not in session:
+    if not check_admin_session():
         return redirect("/login")
     template = "edit_user.html"
 
@@ -182,7 +190,7 @@ def edit_user():
 
 @app.route("/remove_user")
 def remove_user():
-    if "admin" not in session:
+    if not check_admin_session():
         return redirect("/login")
 
     # remove user
@@ -370,7 +378,7 @@ def add_student():
         if new_student(sname, birth, sclass, email, phone):
             return redirect("/")
     """else:
-        # get excel file contents
+        # get students from excel file
         for i in range(10):
             if not new_student(sname, birth, sclass, email, phone):
                 print("error adding student" + sname)
@@ -434,28 +442,178 @@ def remove_student():
                 return redirect("/")
             dsq = f"delete from students where id = ?"
             db.query(dsq, id)
+            with SQL(db_name) as tdb:
+                ducq = "update users set consumption = ? where id = ?"
+                tdb.query(ducq, (session["consumption"]-1, session["id"]))
+                session["consumption"] -= 1
             print("Student deleted!")
     return redirect("/")
 
-
 # add category
+@app.route("/add_category", methods=["GET", "POST"])
+def add_category():
+    if not session:
+        return redirect("/login")
+    template = "add_category.html"
 
+    with SQL(session["db"]) as db:
+        # default
+        if request.method == "GET":
+            return render_template(template)
+        
+        # add category
+        cname = request.form.get("cname")
+        if not cname:
+            return render_template(template, error="Must provide category name!")
+        acq = f"insert into categories(catname) values(?)"
+        if db.query(acq, (cname)):
+            return redirect("/")
+    return render_template(template, error="Error adding category!")
 
 # edit category
+@app.route("/edit_category", methods=["GET", "POST"])
+def edit_category():
+    if not session:
+        return redirect("/login")
+    template = "edit_category.html"
 
+    with SQL(session["db"]) as db:
+        # default
+        if request.method == "GET":
+            id = request.args.get("id")
+            if not id:
+                return redirect("/")
+            gcq = f"select * from categories where id = ?"
+            cdata = db.query(gcq, id)
+            if cdata:
+                return render_template(template, cdata=cdata[0])
+            return render_template(template, error="Can't get category data!")
+
+        # edit category
+        id = request.form.get("id")
+        cname = request.form.get("cname")
+        if not cname or not id:
+            return render_template(template, error="Must provide category data!")
+        ecq = f"""
+                update categories set
+                catname = ?
+                where id = ?
+                """
+        db.query(ecq, (cname, id))
+    return redirect("/")
 
 # remove category
-
+@app.route("/remove_category")
+def remove_category():
+    if not session:
+        return redirect("/login")
+    
+    with SQL(session["db"]) as db:
+        id = request.args.get("id")
+        if not id:
+            print("Cannot get category id!")
+            return redirect("/")
+        dcq = f"delete from categories where id = ?"
+        db.query(dcq, id)
+        print("Category deleted!")
+    return redirect("/")
 
 # add instance
+@app.route("/add_instance", methods=["GET", "POST"])
+def add_instance():
+    if not session:
+        return redirect("/login")
+    template = "add_instance.html"
 
-
+    with SQL(session["db"]) as db:
+        # default
+        if request.method == "GET":
+            return render_template(template)
+        
+        # add instance
+        iname = request.form.get("iname")
+        iclass = request.form.get("iclass")
+        category = request.form.get("category")
+        idate = request.form.get("idate")
+        if not iname or not iclass or not category or not idate:
+            return render_template(template, error="Must provide instance data!")
+        # iclass_validate
+        icvq = f"select * from classes where cname = ?"
+        if not db.query(icvq, iclass):
+            return render_template(template, error="Class not found!")
+        # icategory_validate
+        icvq = f"select * from categories where catname = ?"
+        if not db.query(icvq, category):
+            return render_template(template, error="Category not found!")
+        iquery = f"""
+                    insert into instances(iname, iclass, category, idate)
+                    values(?, ?, ?, ?)
+                """
+        if db.query(iquery, (iname, iclass, category, idate)):
+            return redirect("/")
+    return render_template(template, error="Error adding instance!")
 
 # edit instance
+@app.route("/edit_instance", methods=["GET", "POST"])
+def edit_instance():
+    if not session:
+        return redirect("/login")
+    template = "edit_instance.html"
 
+    with SQL(session["db"]) as db:
+        # default
+        if request.method == "GET":
+            id = request.args.get("id")
+            if not id:
+                return redirect("/")
+            giq = f"select * from instances where id = ?"
+            idata = db.query(giq, id)
+            if idata:
+                return render_template(template, idata=idata[0])
+            return render_template(template, error="Can't get instance data!")
+
+        # edit instance
+        id = request.form.get("id")
+        iname = request.form.get("iname")
+        iclass = request.form.get("iclass")
+        category = request.form.get("category")
+        idate = request.form.get("idate")
+        if not id or not iname or not iclass or not category or not idate:
+            return render_template(template, error="Must provide instance data!")
+        # iclass_validate
+        icvq = f"select * from classes where cname = ?"
+        if not db.query(icvq, iclass):
+            return render_template(template, error="Class not found!")
+        # icategory_validate
+        icvq = f"select * from categories where catname = ?"
+        if not db.query(icvq, category):
+            return render_template(template, error="Category not found!")
+        iquery = f"""
+                    update instances set
+                    iname = ?,
+                    iclass = ?,
+                    category = ?,
+                    idate = ?
+                    where id = ?
+                """
+        db.query(iquery, (iname, iclass, category, idate, id))
+    return redirect("/")
 
 # remove instance
-
+@app.route("/remove_instance")
+def remove_instance():
+    if not session:
+        return redirect("/login")
+    
+    with SQL(session["db"]) as db:
+        id = request.args.get("id")
+        if not id:
+            print("Cannot get instance id!")
+            return redirect("/")
+        diq = f"delete from instances where id = ?"
+        db.query(diq, id)
+        print("Instance deleted!")
+    return redirect("/")
 
 # get student report
 
@@ -464,5 +622,6 @@ def remove_student():
 
 
 # add students from excel
+
 
 # add instance from csv

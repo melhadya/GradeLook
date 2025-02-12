@@ -35,12 +35,11 @@ create table categories(
 create table instances(
     id integer primary key,
     iname text not null,
-    code text not null,
-    class text not null,
+    iclass text not null,
     category text not null,
     idate text not null,
     foreign key(category) references categories(catname) on delete cascade on update cascade,
-    foreign key(class) references classes(cname) on delete cascade on update cascade
+    foreign key(iclass) references classes(cname) on delete cascade on update cascade
 );
 
 /*
