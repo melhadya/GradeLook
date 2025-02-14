@@ -63,9 +63,9 @@ def new_student(name, class_id, email, phone):
                         insert into students(name, class, email, phone)
                         values(?, ?, ?, ?)
                         """
-        if available and db.query(student_q, name, clas, email, phone):
+        if available and db.query(student_q, name, class_id, email, phone):
             # student added
-            update_cons("inc")
+            update_consumption()
             return True
     return False
 def allowed_file(name):
@@ -144,7 +144,7 @@ def add_user():
                 insert into users(username, hash, name, title, phone, email)
                 values (?, ?, ?, ?, ?, ?)
             """
-        if db.query(add_q, username, pw_hash, name, title, phone, email)
+        if db.query(add_q, username, pw_hash, name, title, phone, email):
             # create user db
             id_q = "select id from users where username = ?"
             new_user_id = db.query(id_q, username)[0]["id"]
@@ -416,7 +416,7 @@ def students():
                  WHERE students.class = ?"""
         students = db.query(students_q, class_id)
         
-        class_q = "SELECT cname, id FROM classes WHERE id = ?"
+        class_q = "SELECT name, id FROM classes WHERE id = ?"
         selected_class = db.query(class_q, class_id)[0]
         
         if students and selected_class:
@@ -604,6 +604,7 @@ def remove_category():
     return redirect("/categories")
 
 ###################################################3
+
 # add instance
 @app.route("/add_instance", methods=["GET", "POST"])
 def add_instance():

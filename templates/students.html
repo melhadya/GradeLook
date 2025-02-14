@@ -5,14 +5,11 @@ Students
 {% endblock %}
 
 {% block content %}
+<h2>
 {% if selected_class %}
-<h2>{{ selected_class.name }} Students</h2>
-
-
-{% else %}
-<h2>Students <button id="export-btn" class="btn btn-primary">Export to CSV</button></h2>
+{{ selected_class.name }}
 {% endif %}
-
+ Students <button id="export-btn" class="btn btn-primary">Export to CSV</button></h2>
 {% if students %}
 <div class="input-group mb-3">
     <span class="input-group-text" id="basic-addon3">Search</span>
