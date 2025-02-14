@@ -1,0 +1,23 @@
+.error {
+    color: red;
+    text-align: center;
+}
+
+.navbar .nav-link.btn-primary:hover {
+    background-color: #79b4f3;
+    border-color: #004085;
+}
+
+.navbar .nav-link.btn-warning:hover {
+    background-color: #e9d085;
+    border-color: #d39e00;
+}
+
+.navbar .nav-link.btn-danger:hover {
+    background-color: #ee5867;
+    border-color: #bd2130;
+}
+
+.hidden {
+    display: none;
+}

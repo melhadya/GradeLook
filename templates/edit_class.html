@@ -1,27 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Class</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <div class="container">
-        <h1>Edit Class</h1>
-        <form action="{{ url_for('edit_class') }}" method="POST">
-            <input type="hidden" name="id" value="{{ cdata.id }}">
-            <div class="form-group">
-                <label for="cname">Class Name:</label>
-                <input type="text" id="cname" name="cname" value="{{ cdata.cname }}" required>
-            </div>
-            <div class="form-group">
-                <label for="ctype">Class Type:</label>
-                <input type="text" id="ctype" name="ctype" value="{{ cdata.type }}" required>
-            </div>
-            <button type="submit">Update Class</button>
-        </form>
-        <a href="{{ url_for('index') }}">Back to Dashboard</a>
-    </div>
-</body>
-</html>
+{% extends "layout.html" %}
+
+{% block title %}
+Edit Class
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Edit Class</h2>
+    <form method="post" action="/edit_class">
+        <input type="hidden" name="id" value="{{ class_data.id }}">
+        <div class="form-group">
+            <label for="name">Class Name:</label>
+            <input class="form-control" type="text" value="{{ class_data.cname }}" id="name" name="name" required autofocus autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="type">Class Type:</label>
+            <input class="form-control" type="text" value="{{ cdata.ctype }}" id="type" name="type" required autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-primary">Update Class</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Students
+{% endblock %}
+
+{% block content %}
+{% if selected_class %}
+<h2>{{ selected_class.name }} Students</h2>
+
+
+{% else %}
+<h2>Students <button id="export-btn" class="btn btn-primary">Export to CSV</button></h2>
+{% endif %}
+
+{% if students %}
+<div class="input-group mb-3">
+    <span class="input-group-text" id="basic-addon3">Search</span>
+    <input type="text" class="form-control" id="search-input" aria-describedby="basic-addon3"  placeholder="Enter name to search">
+</div>
+<table class="table table-striped table-hover" id="data-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Class</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for student in students %}
+        <tr>
+            <td>{{ student.id }}</td>
+            <td>{{ selected_class.name }}</td>
+            <td>{{ student.name }}</td>
+            <td><a href="https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to={{ student.email }}" target="_blank">{{ student.email }}</a></td>
+            <td><a href="https://wa.me/{{ student.phone }}" target="_blank">+{{ student.phone }}</a></td>
+            <td>
+                {% if False %}<a class="btn btn-primary">View Grades</a>{% endif %}
+                <a href="/edit_student?id={{ student.id }}" class="btn btn-warning">Edit</a>
+                <a href="/remove_student?id={{ student.id }}" class="btn btn-danger">Remove</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<script>
+    function exportTableToCSV(filename) {
+            var csv = [];
+            var rows = document.querySelectorAll("table tr");
+            
+            for (var i = 0; i < rows.length; i++) {
+                var row = [], cols = rows[i].querySelectorAll("td, th");
+
+                for (var j = 0; j < cols.length; j++) 
+                    row.push(cols[j].innerText);
+
+                csv.push(row.join(","));        
+            }
+
+            // Download CSV file
+            downloadCSV(csv.join("\n"), filename);
+        }
+
+        function downloadCSV(csv, filename) {
+            var csvFile;
+            var downloadLink;
+
+            csvFile = new Blob([csv], {type: "text/csv"});
+            downloadLink = document.createElement("a");
+
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+
+            downloadLink.click();
+        }
+    $(document).ready(function(){
+        $("#export-btn").click(function(){
+                exportTableToCSV('data.csv');
+            });
+        $('#search-input').on('input', function(){
+            var searchText = $(this).val().toLowerCase();
+            $('#data-table tbody tr').each(function(){
+                var rowText = $(this).find('td:eq(2)').text().toLowerCase();
+                if(rowText.includes(searchText)) {
+                    $(this).removeClass('hidden');
+                } else {
+                    $(this).addClass('hidden');
+                }
+            });
+        });
+    });
+</script>
+{% endif %}
+
+{% endblock %}

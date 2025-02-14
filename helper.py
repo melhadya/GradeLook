@@ -9,7 +9,9 @@ class SQL:
         self.db = None
 
     def __enter__(self):
-        return self.connect()
+        db_con = self.connect()
+        self.query("PRAGMA foreign_keys=ON")
+        return db_con
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type:
@@ -36,17 +38,14 @@ class SQL:
             self.db.close()
             print("DB connection closed!")
 
-    def query(self, query, params=None):
+    def query(self, query, *args):
         if self.db is None:
             print("DB error: no db connection!")
             return None
         print(query)
         try:
             exc = self.db.cursor()
-            if params:
-                exc.execute(query, params)
-            else:
-                exc.execute(query)
+            exc.execute(query, args)
             print("Query executed!")
             if query.strip().lower().startswith("select"):
                 return exc.fetchall()
@@ -84,4 +83,4 @@ def cp(stored, entered):
             print("Error verifying password: " + str(e))
     return False
 
-#
+# END
