@@ -7,7 +7,7 @@ Students
 {% block content %}
 <h2>
 {% if selected_class %}
-{{ selected_class.name }}
+{{ selected_class }}
 {% endif %}
  Students <button id="export-btn" class="btn btn-primary">Export to CSV</button></h2>
 {% if students %}
@@ -30,7 +30,7 @@ Students
         {% for student in students %}
         <tr>
             <td>{{ student.id }}</td>
-            <td>{{ selected_class.name }}</td>
+            <td>{{ student.class_name }}</td>
             <td>{{ student.name }}</td>
             <td><a href="https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to={{ student.email }}" target="_blank">{{ student.email }}</a></td>
             <td><a href="https://wa.me/{{ student.phone }}" target="_blank">+{{ student.phone }}</a></td>

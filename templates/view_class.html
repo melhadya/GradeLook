@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-<h2>Class {{ class_data.name }}</h2>
+<h2>Class {{ class_data.name }} - {{ class_data.type }} - {{ class_data.students_count }} Students</h2>
 <form action="/add_student" method="post" class="row g-3" enctype="multipart/form-data">
     <input type="hidden" name="class" value="{{ class_data.id }}">
     <div class="col-auto">
@@ -23,9 +23,6 @@
     <div class="col-auto">
         <button type="submit" class="btn btn-primary mb-3">Upload!</button>
     </div>
-    <div class="col-auto">
-        <a href="/add_instance?class={{ class_data.id }}" class="btn btn-primary form-control">Add Instance</a>
-    </div>
 </form>
 {% if instances %}
 <table class="table table-striped table-hover">
@@ -35,20 +32,22 @@
             <th>Title</th>
             <th>Category</th>
             <th>Date</th>
-            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
         {% for inst in instances %}
-        <tr>
-            <td>{{ inst.id }}</td>
-            <td>{{ inst.title }}</td>
-            <td>{{ inst.category }}</td>
-            <td>{{ inst.date }}</td>
+        <tr class="clickable-row">
             <td>
-                <a href="" class="btn btn-primary">Print</a>
-                <a href="/edit_instance?id={{ inst.id }}" class="btn btn-warning">Edit</a>
-                <a href="/remove_instance?id={{ inst.id }}" class="btn btn-danger">Remove</a>
+                <a href="/view_instance?inst={{ inst.id }}">{{ inst.id }}</a>
+            </td>
+            <td>
+                <a href="/view_instance?inst={{ inst.id }}">{{ inst.title }}</a>
+            </td>
+            <td>
+                <a href="/view_instance?inst={{ inst.id }}">{{ inst.category_name }}</a>
+            </td>
+            <td>
+                <a href="/view_instance?inst={{ inst.id }}">{{ inst.date }}</a>
             </td>
         </tr>
         {% endfor %}

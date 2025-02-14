@@ -28,6 +28,16 @@ create table if not exists instances(
     foreign key(class) references classes(id) on delete cascade
 );
 
+create table if not exists records(
+    id integer primary key,
+    instance integer not null,
+    student integer not null,
+    score numeric default 0,
+    total numeric not null,
+    foreign key(student) references students(id) on delete cascade,
+    foreign key(instance) references instances(id) on delete cascade
+);
+
 /*
 create table users(
     id integer primary key,
@@ -39,13 +49,5 @@ create table users(
     email text not null,
     quota integer default 100,
     consumption integer default 0
-);
-
-create table inst+<instances.id>(
-    id integer primary key,
-    student integer not null,
-    score numeric default 0,
-    total numeric not null,
-    foreign key(student) references students(id) on delete cascade
 );
 */

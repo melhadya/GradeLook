@@ -196,7 +196,8 @@ def edit_user():
                     where id = ?
                     """
         if not db.query(edit_q, username, name, pw_hash, title, phone, email, quota, id):
-            return render_template(template, error="Error editing user!")
+            print("Error editing user!")
+            return redirect("/edit_user?id="+str(id))
     return redirect("/admin")
 @app.route("/remove_user")
 def remove_user():
@@ -336,19 +337,22 @@ def edit_class():
         if request.method == "GET":
             id = request.args.get("id")
             if not id:
+                print("No class id!")
                 return redirect("/classes")
             class_q = "select * from classes where id = ?"
             class_data = db.query(class_q, id)
             if class_data:
                 return render_template(template, class_data=class_data[0])
-            return render_template(template, error="Can't get class data!", class_data=None)
+            print("Can't get class data")
+            return redirect("/classes")
 
         # edit class
         id = request.form.get("id")
         name = request.form.get("name")
         type = request.form.get("type")
         if not name or not type or not id:
-            return render_template(template, error="Must provide class data!", class_data=None)
+            print("Must provide class data!")
+            return redirect("/edit_class?id="+str(id))
         update_q = """
                 update classes set
                 name = ?,
@@ -370,9 +374,9 @@ def remove_class():
             print("Cannot get class id!")
             return redirect("/classes")
         delete_q = "delete from classes where id = ?"
-        db.query(delete_q, id)
-        print("Class deleted!")
-        update_consumption()
+        if db.query(delete_q, id):
+            print("Class deleted!")
+            update_consumption()
     return redirect("/classes")
 
 @app.route("/view_class")
@@ -384,13 +388,24 @@ def view_class():
     class_data = None
     with SQL(session["db"]) as db:
         id = request.args.get("id")
-        inst_q = "select * from instances where class = ?"
+        if not id:
+            print("No class id!")
+            return redirect("/classes")
+        inst_q = "select instances.*, categories.name as category_name from instances, categories where instances.class = ? and instances.category=categories.id"
         instances = db.query(inst_q, id)
-        class_q = "select * from classes where id = ?"
-        class_data = db.query(class_q, id)[0]
+        class_q = """
+            select id, name, type, (
+            select count(name) from students where class = classes.id
+            ) as students_count
+            from classes where id = ?
+            """
+        class_data = db.query(class_q, id)
+        if not class_data:
+            print("Class not found!")
+            return redirect("/classes")
         if instances:
-            return render_template(template, instances=instances, class_data=class_data)
-    return render_template(template, error="No instances to show!", class_data=class_data)
+            return render_template(template, instances=instances, class_data=class_data[0])
+    return render_template(template, error="No instances to show!", class_data=class_data[0])
 
 @app.route("/students")
 def students():
@@ -403,27 +418,26 @@ def students():
     with SQL(session["db"]) as db:
         # If no specific class is selected, display all students with their class names
         if not class_id:
-            students_q = """SELECT students.*, classes.name 
+            students_q = """SELECT students.*, classes.name as class_name
                      FROM students, classes
                      where students.class = classes.id"""
             students = db.query(students_q)
-            return render_template(template, students=students, selected_class=None)
-        
+            if students:
+                return render_template(template, students=students)
+            else:
+                return render_template(template, error="No students to show!")
         # If a specific class is selected, display students from that class
-        students_q = """SELECT students.*, classes.name 
-                 FROM students
-                 JOIN classes ON students.class = classes.id
-                 WHERE students.class = ?"""
+        students_q = """SELECT students.*, classes.name as class_name
+                 FROM students, classes
+                 where students.class = classes.id and
+                 students.class = ?"""
         students = db.query(students_q, class_id)
-        
-        class_q = "SELECT name, id FROM classes WHERE id = ?"
-        selected_class = db.query(class_q, class_id)[0]
-        
-        if students and selected_class:
+        if students:
+            selected_class = students[0]["class_name"]
             return render_template(template, students=students, selected_class=selected_class)
-        
-        return render_template(template, selected_class=selected_class, error="No students to show!")
-    
+        else:
+            print("No students in class!")
+            return redirect("/view_class?id="+str(class_id))
     return redirect("/students")
 
 @app.route("/add_student", methods=["GET", "POST"])
@@ -435,19 +449,29 @@ def add_student():
     student_class = None
     if request.method == "GET":
         student_class = request.args.get("class")
+        if not student_class:
+            print("No class found for adding student!")
+            return redirect("/classes")
         with SQL(session["db"]) as db:
             class_q = "select id, name from classes where id = ?"
-            class_data = db.query(class_q, student_class)[0]
-        return render_template(template, class_data=class_data)
+            class_data = db.query(class_q, student_class)
+            if class_data:
+                return render_template(template, class_data=class_data[0])
+            print("Class not found for adding student!")
+            return redirect("/classes")
     
     # get form data
     student_class = request.form.get("class")
+    if not student_class:
+        print("Class not found for adding student!")
+        return redirect("/classes")
     if 'file' not in request.files:
         name = request.form.get("name")
         email = request.form.get("email")
         phone = request.form.get("phone")
-        if not name or not email or not phone or not student_class:
-            return render_template(template, error="Must provide student data!", class_data=None)
+        if not name or not email or not phone:
+            print("Must provide student data!")
+            return redirect("/add_student?class="+str(student_class))
         # add student
         if new_student(name, student_class, email, phone):
             update_consumption()
@@ -465,25 +489,31 @@ def add_student():
                 os.remove(fpath)
                 update_consumption()
                 return redirect("/students?class="+str(student_class))
-
-    return render_template(template, error="Error adding student!", class_data=None)
-    
+        print("Error adding file!")
+    print("Error adding student/s!")
+    return redirect("/view_class?id="+str(student_class))
+        
 @app.route("/edit_student", methods=["GET", "POST"])
 def edit_student():
     if not session:
         return redirect("/login")
     template = "edit_student.html"
+    
     with SQL(session["db"]) as db:
         # default
         if request.method == "GET":
             id = request.args.get("id")
             if not id:
-                return redirect("/")
+                print("Error getting student id!")
+                return redirect("/students")
+            
             student_q = "select * from students where id = ?"
             student_data = db.query(student_q, id)
             if student_data:
                 return render_template(template, student_data=student_data[0])
-            return render_template(template, error="Can't get student data!", student_data=None)
+            
+            print("Can't get student data!")
+            return redirect("/students")
         
         # edit student
         id = request.form.get("id")
@@ -491,7 +521,9 @@ def edit_student():
         email = request.form.get("email")
         phone = request.form.get("phone")
         if not id or not name or not email or not phone:
-            return render_template(template, error="Must provide student data!", student_data=None)
+            print("Must provide student data!")
+            return redirect("/students")
+        
         student_q = """
                     update students set
                     name = ?,
@@ -499,30 +531,26 @@ def edit_student():
                     phone = ?
                     where id = ?
                 """
-        db.query(student_q, name, email, phone, id)
-        class_q = "select class from students where id = ?"
-        class_id = db.query(class_q, id)[0]["class"]
-        return redirect("/students?class="+str(class_id))
-    return render_template(template, error="Error editing student!", student_data=None)
+        if db.query(student_q, name, email, phone, id):
+            print("Student edited successfully!")
+    print("Error editing student!")
+    return redirect("/students")
     
 @app.route("/remove_student")
 def remove_student():
     if not session:
         return redirect("/login")
     
-    class_id = None
     with SQL(session["db"]) as db:
         id = request.args.get("id")
         if not id:
             print("Cannot get student id!")
             return redirect("/students")
-        class_q = "select class from students where id = ?"
-        class_id = db.query(class_q, id)[0]["class"]
         delete_q = "delete from students where id = ?"
         if db.query(delete_q, id):
             update_consumption()
             print("Student deleted!")
-    return redirect("/students?class="+str(class_id))
+    return redirect("/students")
 
 @app.route("/categories")
 def categories():
@@ -568,19 +596,22 @@ def edit_category():
         if request.method == "GET":
             id = request.args.get("id")
             if not id:
+                print("Can't get category id")
                 return redirect("/categories")
             cat_q = "select * from categories where id = ?"
             cats = db.query(cat_q, id)
             if cats:
                 return render_template(template, cat=cats[0])
-            return render_template(template, error="Can't get category data!", cat=None)
+            print("Can't get category data")
+            return redirect("/categories")
 
         # edit category
         id = request.form.get("id")
         name = request.form.get("name")
         if not name or not id:
-            return render_template(template, error="Must provide category data!", cat=None)
-        update_q = f"""
+            print("Must provide category data!")
+            return redirect("/categories")
+        update_q = """
                 update categories set
                 name = ?
                 where id = ?
@@ -599,13 +630,10 @@ def remove_category():
             print("Cannot get category id!")
             return redirect("/categories")
         delete_q = "delete from categories where id = ?"
-        db.query(delete_q, id)
-        print("Category deleted!")
+        if db.query(delete_q, id):
+            print("Category deleted!")
     return redirect("/categories")
 
-###################################################3
-
-# add instance
 @app.route("/add_instance", methods=["GET", "POST"])
 def add_instance():
     if not session:
@@ -615,89 +643,39 @@ def add_instance():
     with SQL(session["db"]) as db:
         # default
         if request.method == "GET":
-            return render_template(template)
+            classes_q = "select * from classes"
+            classes_data = db.query(classes_q)
+            
+            cat_q = "select * from categories"
+            cats = db.query(cat_q)
+            
+            if not classes_data or not cats:
+                print("Can't get classes/categories")
+                return redirect("/classes")
+            return render_template(template, classes_data=classes_data, cats=cats)
         
         # add instance
-        iname = request.form.get("iname")
-        iclass = request.form.get("iclass")
+        title = request.form.get("title")
+        classes_id = request.form.getlist("classes")
         category = request.form.get("category")
-        idate = request.form.get("idate")
-        if not iname or not iclass or not category or not idate:
-            return render_template(template, error="Must provide instance data!")
-        # iclass_validate
-        icvq = f"select * from classes where cname = ?"
-        if not db.query(icvq, iclass):
-            return render_template(template, error="Class not found!")
-        # icategory_validate
-        icvq = f"select * from categories where catname = ?"
-        if not db.query(icvq, category):
-            return render_template(template, error="Category not found!")
-        iquery = f"""
-                    insert into instances(iname, iclass, category, idate)
-                    values(?, ?, ?, ?)
-                """
-        if db.query(iquery, iname, iclass, category, idate):
-            giq = f"select id from instances order by id desc limit 1"
-            ni = "inst" + str(db.query(giq)[0]["id"])
-            iit = f"""
-                create table {ni}(
-                id integer primary key,
-                student integer not null,
-                score numeric default 0,
-                total numeric not null,
-                foreign key(student) references students(id) on delete cascade on update cascade)
-                """
-            db.script(iit)
-            return redirect("/")
-    return render_template(template, error="Error adding instance!")
+        date = str(request.form.get("date"))
+        if not title or not classes_id or not category or not date:
+            print("Must provide instance data!")
+            return redirect("/add_instance")
+        
+        for class_id in classes_id:
+            # add instance
+            inst_q = """
+                        insert into instances(title, class, category, date)
+                        values(?, ?, ?, ?)
+                    """
+            db.query(inst_q, title, class_id, category, date)
+        else:
+            print("Instance added!")
+            return redirect("/classes")        
+    print("Error adding instance!")
+    return redirect("/add_instance")
 
-# edit instance
-@app.route("/edit_instance", methods=["GET", "POST"])
-def edit_instance():
-    if not session:
-        return redirect("/login")
-    template = "edit_instance.html"
-
-    with SQL(session["db"]) as db:
-        # default
-        if request.method == "GET":
-            id = request.args.get("id")
-            if not id:
-                return redirect("/")
-            giq = f"select * from instances where id = ?"
-            idata = db.query(giq, id)
-            if idata:
-                return render_template(template, idata=idata[0])
-            return render_template(template, error="Can't get instance data!")
-
-        # edit instance
-        id = request.form.get("id")
-        iname = request.form.get("iname")
-        iclass = request.form.get("iclass")
-        category = request.form.get("category")
-        idate = request.form.get("idate")
-        if not id or not iname or not iclass or not category or not idate:
-            return render_template(template, error="Must provide instance data!")
-        # iclass_validate
-        icvq = f"select * from classes where cname = ?"
-        if not db.query(icvq, iclass):
-            return render_template(template, error="Class not found!")
-        # icategory_validate
-        icvq = f"select * from categories where catname = ?"
-        if not db.query(icvq, category):
-            return render_template(template, error="Category not found!")
-        iquery = f"""
-                    update instances set
-                    iname = ?,
-                    iclass = ?,
-                    category = ?,
-                    idate = ?
-                    where id = ?
-                """
-        db.query(iquery, iname, iclass, category, idate, id)
-    return redirect("/")
-
-# remove instance
 @app.route("/remove_instance")
 def remove_instance():
     if not session:
@@ -707,13 +685,19 @@ def remove_instance():
         id = request.args.get("id")
         if not id:
             print("Cannot get instance id!")
-            return redirect("/")
-        diq = f"delete from instances where id = ?"
-        db.query(diq, id)
-        print("Instance deleted!")
-    return redirect("/")
+            return redirect("/classes")
+        delete_q = "delete from instances where id = ?"
+        if db.query(delete_q, id):
+            print("Instance deleted!")
+    return redirect("/classes")
 
-# add instance data from csv file
-# add students to a class from csv file
+###################################################
+
+# view instance
+# add records from csv file
+# edit instance/records
+
+###################################################
+
 # get student report
-# get class grades report for all instances for every student
+# get class grades report for all instances

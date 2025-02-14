@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Add Instance
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Add Instance</h2>
+    <form method="post" action="/add_instance">
+        <div class="form-group">
+            <label for="title">Title:</label>
+            <input class="form-control" type="text" id="title" name="title" required autofocus autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="date">Date:</label>
+            <input class="form-control" type="date" id="date" name="date" required autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="category">Category:</label>
+            <select class="form-select" aria-label="Default select example" id="category" name="category" required>
+                <option selected disabled>Select Category</option>
+                {% for cat in cats %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="classes">Classes:</label>
+            <div id="classes">
+                {% for class in classes_data %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="classes" value="{{ class.id }}" id="{{ class.id }}">
+                    <label class="form-check-label" for="class{{ class.id }}">
+                        {{ class.name }}
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Instance</button>
+    </form>
+</div>
+{% endblock %}
