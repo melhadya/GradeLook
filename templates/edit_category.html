@@ -13,6 +13,10 @@ Edit Category
             <label for="name">Category Name:</label>
             <input class="form-control" type="text" value="{{ cat.name }}" id="name" name="name" required autofocus autocomplete="off">
         </div>
+        <div class="form-group">
+            <label for="share">Grade %:</label>
+            <input class="form-control" type="number" min="0" max="100" value="{{ (cat.share*100)|int }}" id="share" name="share" required autocomplete="off">
+        </div>
         <button type="submit" class="btn btn-primary">Update Category</button>
     </form>
 </div>

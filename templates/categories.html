@@ -13,6 +13,7 @@ Categories
         <tr>
             <th>ID</th>
             <th>Name</th>
+            <th>%</th>
             <th>Action</th>
         </tr>
     </thead>
@@ -21,6 +22,7 @@ Categories
         <tr>
             <td>{{ cat.id }}</td>
             <td>{{ cat.name }}</td>
+            <td>{{ (cat.share*100)|int }} %</td>
             <td>
                 <a href="/edit_category?id={{ cat.id }}" class="btn btn-warning">Edit</a>
                 <a href="/remove_category?id={{ cat.id }}" class="btn btn-danger">Remove</a>

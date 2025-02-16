@@ -9,8 +9,12 @@ Add Category
     <h2>Add Category</h2>
     <form method="post" action="/add_category">
         <div class="form-group">
-            <label for="catname">Category Name:</label>
+            <label for="name">Category Name:</label>
             <input class="form-control" type="text" id="name" name="name" required autofocus autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="share">Grade %:</label>
+            <input class="form-control" type="number" min="0" max="100" id="share" name="share" required autocomplete="off">
         </div>
         <button type="submit" class="btn btn-primary">Add Category</button>
     </form>

@@ -18,10 +18,16 @@
         <a class="btn btn-dark form-control">OR</a>
     </div>
     <div class="col-auto">
-        <input class="form-control" type="file" name="file" id="formFile" accept=".csv">
+        <input class="form-control" type="file" name="file" id="formFile" accept=".csv" required>
     </div>
     <div class="col-auto">
         <button type="submit" class="btn btn-primary mb-3">Upload!</button>
+    </div>
+    <div class="col-auto">
+        <a href="/edit_class?id={{ class_data.id }}" class="btn btn-warning">Edit Class</a>
+    </div>
+    <div class="col-auto">
+        <a href="/remove_class?id={{ class_data.id }}" class="btn btn-danger">Remove Class</a>
     </div>
 </form>
 {% if instances %}
@@ -30,6 +36,7 @@
         <tr>
             <th>ID</th>
             <th>Title</th>
+            <th>Total Score</th>
             <th>Category</th>
             <th>Date</th>
         </tr>
@@ -38,16 +45,19 @@
         {% for inst in instances %}
         <tr class="clickable-row">
             <td>
-                <a href="/view_instance?inst={{ inst.id }}">{{ inst.id }}</a>
+                <a href="/view_instance?id={{ inst.id }}">{{ inst.id }}</a>
             </td>
             <td>
-                <a href="/view_instance?inst={{ inst.id }}">{{ inst.title }}</a>
+                <a href="/view_instance?id={{ inst.id }}">{{ inst.title }}</a>
             </td>
             <td>
-                <a href="/view_instance?inst={{ inst.id }}">{{ inst.category_name }}</a>
+                <a href="/view_instance?id={{ inst.id }}">{{ inst.total }}</a>
             </td>
             <td>
-                <a href="/view_instance?inst={{ inst.id }}">{{ inst.date }}</a>
+                <a href="/view_instance?id={{ inst.id }}">{{ inst.category_name }}</a>
+            </td>
+            <td>
+                <a href="/view_instance?id={{ inst.id }}">{{ inst.date }}</a>
             </td>
         </tr>
         {% endfor %}

@@ -15,12 +15,14 @@ create table if not exists students(
 
 create table if not exists categories(
     id integer primary key,
-    name text not null unique
+    name text not null unique,
+    share numeric not null
 );
 
 create table if not exists instances(
     id integer primary key,
     title text not null,
+    total numeric not null,
     class integer not null,
     category integer not null,
     date text not null,
@@ -33,7 +35,6 @@ create table if not exists records(
     instance integer not null,
     student integer not null,
     score numeric default 0,
-    total numeric not null,
     foreign key(student) references students(id) on delete cascade,
     foreign key(instance) references instances(id) on delete cascade
 );

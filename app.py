@@ -71,6 +71,13 @@ def new_student(name, class_id, email, phone):
 def allowed_file(name):
     ALLOWED_EXTENSIONS = {'csv'}
     return '.' in name and name.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def rec_update(id, score):
+    with SQL(session["db"]) as db:
+        update_q = "update records set score = ? where id = ?"
+        db.query(update_q, score, id)
+        print("Record updated!")
+        return True
+    return False
 
 # Admin Routes
 
@@ -578,10 +585,11 @@ def add_category():
         
         # add category
         name = request.form.get("name")
-        if not name:
-            return render_template(template, error="Must provide category name!")
-        add_q = "insert into categories(name) values(?)"
-        if db.query(add_q, name):
+        share = int(request.form.get("share"))/100
+        if not name or not share:
+            return render_template(template, error="Must provide category name/%!")
+        add_q = "insert into categories(name, share) values(?, ?)"
+        if db.query(add_q, name, share):
             return redirect("/categories")
     return render_template(template, error="Error adding category!")
 
@@ -608,15 +616,16 @@ def edit_category():
         # edit category
         id = request.form.get("id")
         name = request.form.get("name")
+        share = int(request.form.get("share"))/100
         if not name or not id:
             print("Must provide category data!")
             return redirect("/categories")
         update_q = """
                 update categories set
-                name = ?
+                name = ?, share = ?
                 where id = ?
                 """
-        db.query(update_q, name, id)
+        db.query(update_q, name, share, id)
     return redirect("/categories")
 
 @app.route("/remove_category")
@@ -658,7 +667,8 @@ def add_instance():
         title = request.form.get("title")
         classes_id = request.form.getlist("classes")
         category = request.form.get("category")
-        date = str(request.form.get("date"))
+        date = request.form.get("date")
+        total = request.form.get("total")
         if not title or not classes_id or not category or not date:
             print("Must provide instance data!")
             return redirect("/add_instance")
@@ -666,10 +676,17 @@ def add_instance():
         for class_id in classes_id:
             # add instance
             inst_q = """
-                        insert into instances(title, class, category, date)
-                        values(?, ?, ?, ?)
+                        insert into instances(title, class, category, date, total)
+                        values(?, ?, ?, ?, ?)
                     """
-            db.query(inst_q, title, class_id, category, date)
+            db.query(inst_q, title, class_id, category, date, total)
+            instid_q = "select id from instances order by id desc limit 1"
+            inst_id = db.query(instid_q)[0]["id"]
+            students_q = "select id from students where class = ?"
+            students_ids = db.query(students_q, class_id)
+            for student in students_ids:
+                record_q = "insert into records(instance, student) values(?, ?)"
+                db.query(record_q, inst_id, student["id"])
         else:
             print("Instance added!")
             return redirect("/classes")        
@@ -693,11 +710,123 @@ def remove_instance():
 
 ###################################################
 
-# view instance
-# add records from csv file
-# edit instance/records
+@app.route("/view_instance")
+def view_instance():
+    if not session:
+        return redirect("/login")
+    template = "view_instance.html"
+
+    with SQL(session["db"]) as db:
+        id = request.args.get("id")
+        if not id:
+            print("Can't get instance id!")
+            return redirect("/classes")
+        inst_q = """
+                select instances.*, categories.name as catname, classes.name as class_name
+                from instances, categories, classes where categories.id = instances.category and instances.class = classes.id
+                and instances.id = ?
+                """
+        instances = db.query(inst_q, id)
+        cats_q = "select id, name from categories"
+        cats = db.query(cats_q)
+        records_q = """
+                    select records.id, records.score, students.name from records, students
+                    where instance = ? and students.id = records.student
+                    """
+        records = db.query(records_q, id)
+        if not instances or not cats or not records:
+            print("Error getting instance/records/categories data!")
+            return redirect("/classes")
+        return render_template(template, inst=instances[0], cats=cats, records=records)
+
+@app.route("/edit_instance", methods=["GET", "POST"])
+def edit_instance():
+    if not session:
+        return redirect("/login")
+    
+    with SQL(session["db"]) as db:
+        # default
+        if request.method == "GET":
+            return redirect("/classes")
+        
+        # edit instance
+        id = request.form.get("id")
+        title = request.form.get("title")
+        category = request.form.get("category")
+        date = request.form.get("date")
+        total = request.form.get("total")
+        old_total = request.form.get("old_total")
+        if not id or not title or not category or not date or not total:
+            print("Must provide instance data!")
+            return redirect("/view_instance?id="+str(id))
+        update_q = """
+                update instances set
+                title = ?,
+                category = ?,
+                date = ?,
+                total = ?
+                where id = ?;
+                """
+        db.query(update_q, title, category, date, total, id)
+        if not total == old_total:
+            update_q = """
+                update records set score = 0 where instance = ?;
+                """
+        db.query(update_q, id)
+        print("Instance Edited!")
+    return redirect("/view_instance?id="+str(id))
+
+# update records
+@app.route("/update_records", methods=["GET", "POST"])
+def update_records():
+    if not session:
+        return redirect("/login")
+    
+    if request.method == "GET":
+        return redirect("/classes")
+    
+    # get form data
+    instance = request.form.get("instance")
+    if not instance:
+        print("No instance found!")
+        return redirect("/classes")
+    if 'file' not in request.files:
+        with SQL(session["db"]) as db:
+            records = db.query("select records.id, instances.total from records, instances where records.instance = ? and records.instance = instances.id", instance)
+            for record in records:
+                score = int(request.form.get("score"+str(record["id"])))
+                if not score:
+                    print("Must provide all scores! Error record " + str(record["id"]))
+                elif score <= record["total"] and rec_update(record["id"], score):
+                    print("Record updated!")
+                else:
+                    print("Score exceeds total! Error record " + str(record["id"]))
+            return redirect("/view_instance?id="+str(instance))
+    else:
+        file = request.files["file"]
+        if file and not file.filename == '' and allowed_file(file.filename):
+            fpath = 'temp_files/' + str(file.filename)
+            file.save(fpath)
+            with open(fpath) as f:
+                records = csv.DictReader(f)
+                total = None
+                with SQL(session["db"]) as db:
+                    total = db.query("select total from instances where id = ?", instance)[0]["total"]
+                for record in records:
+                    id = record["ID"]
+                    score = int(str(record["Score"]))
+                    if not score:
+                        print("Must provide all scores! Error record " + str(id))
+                    elif score <= total and rec_update(id, score):
+                        print("Record updated!")
+                    else:
+                        print("Score exceeds total! Error record " + str(id))
+                os.remove(fpath)
+                return redirect("/view_instance?id="+str(instance))
+        print("Error adding file!")
+    return redirect("/view_instance?id="+str(instance))
 
 ###################################################
 
 # get student report
-# get class grades report for all instances
+# get class report

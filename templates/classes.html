@@ -14,20 +14,22 @@ Classes
             <th>Class Name</th>
             <th>Class Type</th>
             <th>Students</th>
-            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
         {% for class in classes %}
-        <tr>
-            <td>{{ class.id }}</td>
-            <td>{{ class.name }}</td>
-            <td>{{ class.type }}</td>
-            <td>{{ class.students_count }}</td>
+        <tr class="clickable-row">
             <td>
-                <a href="/view_class?id={{ class.id }}" class="btn btn-primary">View Class</a>
-                <a href="/edit_class?id={{ class.id }}" class="btn btn-warning">Edit</a>
-                <a href="/remove_class?id={{ class.id }}" class="btn btn-danger">Remove</a>
+                <a href="/view_class?id={{ class.id }}">{{ class.id }}</a>
+            </td>
+            <td>
+                <a href="/view_class?id={{ class.id }}">{{ class.name }}</a>
+            </td>
+            <td>
+                <a href="/view_class?id={{ class.id }}">{{ class.type }}</a>
+            </td>
+            <td>
+                <a href="/view_class?id={{ class.id }}">{{ class.students_count }}</a>
             </td>
         </tr>
         {% endfor %}

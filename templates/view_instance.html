@@ -1,0 +1,143 @@
+{% extends "layout.html" %}
+
+{% block title %}
+{{ inst.title }} - {{ inst.catname }}
+{% endblock %}
+
+{% block content %}
+<h2>{{ inst.title }} - {{ inst.catname }} - {{ inst.class_name }} <button id="export-btn" class="btn btn-primary">Export to CSV</button></h2>
+<form action="/edit_instance" method="post" class="row g-3" enctype="multipart/form-data">
+    <input type="hidden" name="id" value="{{ inst.id }}">
+    <input type="hidden" name="old_total" value="{{ inst.total }}">
+    <div class="col-auto">
+        <input class="form-control" type="text" name="title" id="title" placeholder="Title" value="{{ inst.title }}">
+    </div>
+    <div class="col-auto">
+        <input class="form-control" type="number" name="total" min="0" id="total" placeholder="Total" value="{{ inst.total }}">
+    </div>
+    <div class="col-auto">
+        <input class="form-control" type="date" name="date" id="date" placeholder="Date" value="{{ inst.date }}">
+    </div>
+    <div class="col-auto">
+        <select class="form-select" aria-label="Default select example" id="category" name="category" required>
+            {% for cat in cats %}
+            <option value="{{ cat.id }}" {% if cat.id == inst.category%}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-warning mb-3">Edit Instance</button>
+    </div>
+    <div class="col-auto">
+        <a class="btn btn-danger mb-3" href="/remove_instance?id={{ inst.id }}">Remove Instance</a>
+    </div>
+</form>
+<form action="/update_records" method="post" class="row g-3" enctype="multipart/form-data">
+    <input type="hidden" name="instance" value="{{ inst.id }}">
+    <div class="col-auto">
+        <input class="form-control" type="file" name="file" id="formFile" accept=".csv" required>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary mb-3">Upload!</button>
+    </div>
+</form>
+<div class="input-group mb-3">
+    <span class="input-group-text" id="basic-addon3">Search</span>
+    <input type="text" class="form-control" id="search-input" aria-describedby="basic-addon3"  placeholder="Enter name to search">
+</div>
+{% if records %}
+<form action="/update_records" method="post" class="row g-3" enctype="multipart/form-data">
+    <input type="hidden" name="instance" value="{{ inst.id }}">
+    <table class="table table-striped table-hover" id="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Student Name</th>
+                <th style="width: 100px;">Score</th>
+                <th>Total</th>
+                <th>{{ inst.catname }} %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <td>{{ record.id }}</td>
+                <td>{{ record.name }}</td>
+                <td style="width: 100px;">
+                    <input type="number" class="form-control" min="0" id="inp{{ loop.index0 }}" name="score{{ record.id }}" value="{{ record.score }}">
+                </td>
+                <td>/{{ inst.total }}</td>
+                <td>{{ ((record.score)|float)/((inst.total)|float)*100 }} %</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="text-center">
+        <button type="submit" class="btn btn-primary mb-3 col-auto">Submit Records</button>
+    </div>
+</form>
+<script>
+        function exportTableToCSV(filename) {
+            var csv = [];
+            var rows = document.querySelectorAll("table tr");
+            for (var i = 0; i < rows.length; i++) {
+                var row = [], cols = rows[i].querySelectorAll("td, th");
+
+                for (var j = 0; j < cols.length; j++) {
+                    if (j == 2 && i > 0) {
+                        // Get the value of the input element in the second column and convert it to a number
+                        var inputElement = cols[j].querySelector('input[id^="inp"]');
+                        if (inputElement) {
+                            var inputValue = inputElement.value;
+                            row.push(Number(inputValue)); // Convert to number if needed
+                        } else {
+                            row.push(""); // Handle missing input element
+                        }
+                    } else {
+                        // Get the text content of the cell
+                        row.push(cols[j].innerText);
+                    }
+                }
+                // Join the row array into a single string with commas and push to CSV array
+                csv.push(row.join(","));        
+            }
+
+            // Download CSV file
+            downloadCSV(csv.join("\n"), filename);
+        }
+
+        function downloadCSV(csv, filename) {
+            var csvFile;
+            var downloadLink;
+
+            csvFile = new Blob([csv], {type: "text/csv"});
+            downloadLink = document.createElement("a");
+
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+
+            downloadLink.click();
+        }
+
+    $(document).ready(function(){
+        $("#export-btn").click(function(){
+                exportTableToCSV(document.title+'.csv');
+            });
+        $('#search-input').on('input', function(){
+            var searchText = $(this).val().toLowerCase();
+            $('#data-table tbody tr').each(function(){
+                var rowText = $(this).find('td:eq(1)').text().toLowerCase();
+                if(rowText.includes(searchText)) {
+                    $(this).removeClass('hidden');
+                } else {
+                    $(this).addClass('hidden');
+                }
+            });
+        });
+    });
+</script>
+{% endif %}
+
+{% endblock %}
