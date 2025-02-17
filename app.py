@@ -2,7 +2,7 @@ import os
 import csv
 from dotenv import load_dotenv
 from helper import SQL, cp, hp
-from flask import Flask, redirect, render_template, request, session
+from flask import Flask, redirect, render_template, request, session, send_file, after_this_request
 from flask_session import Session
 load_dotenv()
 def flask_start():
@@ -491,8 +491,8 @@ def add_student():
             with open(fpath) as f:
                 data = csv.DictReader(f)
                 for s in data:
-                    if not new_student(s["name"], student_class, s["email"], s["phone"]):
-                        print(f"Student {s['name']} not added")
+                    if not new_student(s["Name"], student_class, s["Email"], s["Phone"]):
+                        print(f"Student {s['Name']} not added")
                 os.remove(fpath)
                 update_consumption()
                 return redirect("/students?class="+str(student_class))
@@ -708,8 +708,6 @@ def remove_instance():
             print("Instance deleted!")
     return redirect("/classes")
 
-###################################################
-
 @app.route("/view_instance")
 def view_instance():
     if not session:
@@ -776,7 +774,6 @@ def edit_instance():
         print("Instance Edited!")
     return redirect("/view_instance?id="+str(id))
 
-# update records
 @app.route("/update_records", methods=["GET", "POST"])
 def update_records():
     if not session:
@@ -826,7 +823,142 @@ def update_records():
         print("Error adding file!")
     return redirect("/view_instance?id="+str(instance))
 
-###################################################
+#######################
 
-# get student report
-# get class report
+def get_student_report(student_id):
+    report = []
+    ind = {"ID":0, "Category": "", "Score":0.0, "Count":0, "Total":0, "From":0}
+    with SQL(session["db"]) as db:
+        
+        # get categories and prepare report
+        cats_q = "SELECT * FROM categories"
+        cats = db.query(cats_q)
+        for cat in cats:
+            n = ind.copy()
+            n["ID"] = int(cat["id"])
+            n["Category"] = str(cat["name"])
+            n["From"] = int(cat["share"]*100)
+            report.append(n)
+        
+        records_q = """
+            SELECT records.score, instances.total, instances.category as cat_id
+            FROM records
+            JOIN instances ON records.instance = instances.id
+            WHERE records.student = ?
+        """
+        records = db.query(records_q, student_id)
+        if not records:
+            return None
+        for record in records:
+            for i in range(len(report)):
+                if int(record["cat_id"]) == report[i]["ID"]:
+                    report[i]["Score"] += float(record["score"]) / int(record["total"])
+                    report[i]["Count"] += 1
+        
+        ln = ind.copy()
+        ln["Category"] = "Final Grade"
+        ln["From"] = 100
+        ln["Count"] = 1
+        for i in range(len(report)):
+            if report[i]["Count"] > 0:
+                report[i]["Total"] = round(report[i]["Score"] / report[i]["Count"] * report[i]["From"],1)
+                ln["Total"] += report[i]["Total"]
+        report.append(ln)
+
+        for i in report:
+            del i["ID"]
+            del i["Score"]
+            del i["Count"]
+    
+        student_name = db.query("select name from students where id = ?", student_id)[0]["name"]
+    return [student_id, student_name, report]
+
+@app.route("/student_report")
+def student_report():
+    if not session:
+        return redirect("/login")
+    template = "student_report.html"
+    student_id = request.args.get("id")
+    if not student_id:
+        print("No student id provided!")
+        return redirect("/students")
+    
+    records_q = """
+                    select records.id, records.score,
+                    instances.id as instance, instances.total, instances.title, instances.date,
+                    classes.name as class, classes.id as class_id,
+                    students.name, students.phone,
+                    categories.name as cat
+                    from records, instances, classes, students, categories
+                    where students.id = ?
+                    and records.student = students.id
+                    and records.instance = instances.id
+                    and instances.class = classes.id
+                    and instances.category = categories.id
+                    order by instances.date
+                    """
+    with SQL(session["db"]) as db:
+        records = db.query(records_q, student_id)
+        if records:
+            return render_template(template, records=records, head=records[0])
+    return render_template(template, error="No records to show!")
+
+@app.route("/class_report")
+def class_report():
+    if not session:
+        return redirect("/login")
+    
+    class_id = request.args.get("id")
+    if not class_id:
+        print("No class id provided!")
+        return redirect("/classes")
+    
+    head = ["ID", "Name"]
+    table = []
+    reports = []
+    with SQL(session["db"]) as db:
+        students_q = "select id from students where class = ?"
+        students_ids = db.query(students_q, class_id)
+        for i, id in enumerate(students_ids):
+            report = get_student_report(id["id"])
+            if report:
+                table.append([id["id"], report[1]])
+                reports.append(report[2])
+    
+    if reports:
+        for cat in reports[0]:
+            head.append(str(cat["Category"])+' ('+str(cat["From"])+')')
+
+        for i, report in enumerate(reports):
+            table[i].extend([str(cat["Total"]) for cat in report])
+        
+    fpath = f"temp_files/class{class_id}.csv"
+    with open(fpath, 'w', newline='') as f:
+        wr = csv.writer(f)
+        wr.writerow(head)
+        wr.writerows(table)
+
+    import glob
+    from xlsxwriter.workbook import Workbook
+    npath = ''
+    for csvfile in glob.glob(fpath):
+        npath = csvfile[:-4] + '.xlsx'
+        wb = Workbook(npath)
+        worksheet = wb.add_worksheet()
+        with open(csvfile, 'rt', encoding='utf8') as f:
+            reader = csv.reader(f)
+            for r, row in enumerate(reader):
+                for c, col in enumerate(row):
+                    worksheet.write(r, c, col)
+        wb.close()
+
+    @after_this_request
+    def remove_file(response):
+        try:
+            os.remove(fpath)
+            os.remove(npath)
+        except Exception as error:
+            print(f"Error deleting file: {error}")
+        return response
+
+    return send_file(npath, as_attachment=True)

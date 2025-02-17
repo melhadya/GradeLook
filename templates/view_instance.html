@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-<h2>{{ inst.title }} - {{ inst.catname }} - {{ inst.class_name }} <button id="export-btn" class="btn btn-primary">Export to CSV</button></h2>
+<h2>{{ inst.title }} - {{ inst.catname }} - <a href="/view_class?id={{ inst.class }}">{{ inst.class_name }}</a> <button id="export-btn" class="btn btn-primary">Export to CSV</button></h2>
 <form action="/edit_instance" method="post" class="row g-3" enctype="multipart/form-data">
     <input type="hidden" name="id" value="{{ inst.id }}">
     <input type="hidden" name="old_total" value="{{ inst.total }}">
@@ -38,7 +38,7 @@
         <input class="form-control" type="file" name="file" id="formFile" accept=".csv" required>
     </div>
     <div class="col-auto">
-        <button type="submit" class="btn btn-primary mb-3">Upload!</button>
+        <button type="submit" class="btn btn-primary mb-3">Upload CSV!</button> (ID, Score)
     </div>
 </form>
 <div class="input-group mb-3">
