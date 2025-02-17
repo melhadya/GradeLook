@@ -1,0 +1,7 @@
+os
+csv
+dotenv
+flask
+flask_session
+glob
+xlsxwriter
