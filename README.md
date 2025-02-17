@@ -1,4 +1,7 @@
 # GradeLook (GL)
+### Video Demo: https://youtu.be/AE7coNR_EDw
+
+## Description:
 
 GradeLook is a grade management system designed to help educators track academic performance of their students. With GradeLook, users can easily input, manage, and view grades. The system offers features such as grade calculation, and customizable reporting.
 

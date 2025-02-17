@@ -1,9 +1,9 @@
- os
+import os
 import csv
 from dotenv import load_dotenv
 from helper import SQL, cp, hp
 from flask import Flask, redirect, render_template, request, session, send_file, after_this_request
-from flask_session iimportmport Session
+from flask_session import Session
 load_dotenv()
 def flask_start():
     # DB name and admin credentials    
@@ -490,7 +490,9 @@ def add_student():
             file.save(fpath)
             with open(fpath) as f:
                 data = csv.DictReader(f)
+                print(data)
                 for s in data:
+                    print(s)
                     if not new_student(s["Name"], student_class, s["Email"], s["Phone"]):
                         print(f"Student {s['Name']} not added")
                 os.remove(fpath)
