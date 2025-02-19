@@ -28,7 +28,7 @@ Whether you are an individual educator or part of an educational institution, Gr
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/melhadya/GL.git
+    git clone https://github.com/melhadya/GradeLook.git
     cd GL
     ```
 
@@ -76,10 +76,6 @@ Whether you are an individual educator or part of an educational institution, Gr
 ## Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contact
 
