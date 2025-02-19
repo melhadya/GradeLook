@@ -29,7 +29,7 @@ Whether you are an individual educator or part of an educational institution, Gr
 1. Clone the repository:
     ```sh
     git clone https://github.com/melhadya/GradeLook.git
-    cd GL
+    cd GradeLook
     ```
 
 2. Install the required packages:
